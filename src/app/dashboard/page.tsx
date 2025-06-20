@@ -56,19 +56,19 @@ export default function Dashboard() {
   const checkUserSubscription = async (userId: string) => {
     try {
       const supabase = createClient();
-      const { data: subscription, error } = await supabase
+      const { data: subscriptions, error } = await supabase
         .from('subscriptions')
         .select('*')
         .eq('user_id', userId)
-        .eq('status', 'active')
-        .single();
+        .eq('status', 'active');
 
       if (error) {
         console.error('Subscription check error:', error);
         return false;
       }
 
-      return !!subscription;
+      // Check if any active subscriptions exist
+      return subscriptions && subscriptions.length > 0;
     } catch (error) {
       console.error('Subscription check exception:', error);
       return false;
