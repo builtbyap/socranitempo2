@@ -62,6 +62,8 @@ export const signUpAction = async (formData: FormData) => {
     const password = formData.get("password")?.toString();
     const fullName = formData.get("full_name")?.toString() || '';
 
+    console.log("Form data received:", { email, fullName, passwordLength: password?.length });
+
     if (!email || !password) {
       return encodedRedirect(
         "error",
@@ -186,6 +188,33 @@ export const signUpAction = async (formData: FormData) => {
       }
 
       console.log("User profile created successfully");
+
+      // Verify the user was actually created in the database
+      const { data: verifyUser, error: verifyError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (verifyError) {
+        console.error("Verification error:", verifyError);
+        return encodedRedirect(
+          "error",
+          "/sign-up",
+          "User created but verification failed. Please contact support.",
+        );
+      }
+
+      if (!verifyUser) {
+        console.error("User not found in database after creation");
+        return encodedRedirect(
+          "error",
+          "/sign-up",
+          "User created but not found in database. Please contact support.",
+        );
+      }
+
+      console.log("User verified in database:", verifyUser);
 
     } catch (profileException) {
       console.error("Exception during profile creation:", profileException);
