@@ -1,19 +1,47 @@
+"use client";
 import Hero from "@/components/hero";
 import Navbar from "@/components/navbar";
 import PricingCard from "@/components/pricing-card";
 import Footer from "@/components/footer";
-import { createClient } from "../../supabase/server";
+import { createClient } from "../../supabase/client";
 import { ArrowUpRight, CheckCircle2, Zap, Shield, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { User } from "@supabase/supabase-js";
 
-export default async function Home() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export default function Home() {
+  const [user, setUser] = useState<User | null>(null);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const { data: plans, error } = await supabase.functions.invoke(
-    "supabase-functions-get-plans",
-  );
+  useEffect(() => {
+    const fetchData = async () => {
+      const supabase = createClient();
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setUser(user);
+
+      const { data: plansData } = await supabase.functions.invoke(
+        "supabase-functions-get-plans",
+      );
+      setPlans(plansData || []);
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
