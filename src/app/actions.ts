@@ -4,6 +4,25 @@ import { encodedRedirect } from "@/utils/utils";
 import { redirect } from "next/navigation";
 import { createClient } from "../../supabase/server";
 
+// Check environment variables
+export const checkEnvironment = () => {
+  const envVars = {
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  };
+
+  const missing = Object.entries(envVars)
+    .filter(([key, value]) => !value)
+    .map(([key]) => key);
+
+  return {
+    success: missing.length === 0,
+    missing,
+    hasUrl: !!envVars.supabaseUrl,
+    hasKey: !!envVars.supabaseKey,
+  };
+};
+
 // Diagnostic function to check database connection and table structure
 export const checkDatabaseConnection = async () => {
   try {
@@ -28,21 +47,65 @@ export const checkDatabaseConnection = async () => {
 };
 
 export const signUpAction = async (formData: FormData) => {
-  const email = formData.get("email")?.toString();
-  const password = formData.get("password")?.toString();
-  const fullName = formData.get("full_name")?.toString() || '';
-  const supabase = await createClient();
-
-  if (!email || !password) {
-    return encodedRedirect(
-      "error",
-      "/sign-up",
-      "Email and password are required",
-    );
-  }
-
   try {
+    // Validate environment variables first
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error("Missing Supabase environment variables");
+      return encodedRedirect(
+        "error",
+        "/sign-up",
+        "Configuration error. Please contact support.",
+      );
+    }
+
+    const email = formData.get("email")?.toString();
+    const password = formData.get("password")?.toString();
+    const fullName = formData.get("full_name")?.toString() || '';
+
+    if (!email || !password) {
+      return encodedRedirect(
+        "error",
+        "/sign-up",
+        "Email and password are required",
+      );
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return encodedRedirect(
+        "error",
+        "/sign-up",
+        "Please enter a valid email address",
+      );
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return encodedRedirect(
+        "error",
+        "/sign-up",
+        "Password must be at least 6 characters long",
+      );
+    }
+
+    console.log("Starting sign-up process for:", email);
+
+    // Create Supabase client
+    let supabase;
+    try {
+      supabase = await createClient();
+    } catch (clientError) {
+      console.error("Failed to create Supabase client:", clientError);
+      return encodedRedirect(
+        "error",
+        "/sign-up",
+        "Unable to connect to authentication service. Please try again.",
+      );
+    }
+
     // First, create the user in Supabase Auth
+    console.log("Creating user in Supabase Auth...");
     const { data: { user }, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -79,7 +142,6 @@ export const signUpAction = async (formData: FormData) => {
         email: email,
         token_identifier: user.id,
         full_name: fullName,
-        // Let the database handle created_at and updated_at automatically
       };
 
       console.log("Attempting to insert user profile:", userProfileData);
@@ -134,6 +196,7 @@ export const signUpAction = async (formData: FormData) => {
       );
     }
 
+    console.log("Sign-up process completed successfully");
     return encodedRedirect(
       "success",
       "/sign-up",
@@ -142,10 +205,17 @@ export const signUpAction = async (formData: FormData) => {
 
   } catch (exception) {
     console.error("Unexpected error during signup:", exception);
+    
+    // Provide more specific error information
+    if (exception instanceof Error) {
+      console.error("Error details:", exception.message);
+      console.error("Error stack:", exception.stack);
+    }
+    
     return encodedRedirect(
       "error",
       "/sign-up",
-      "An unexpected error occurred. Please try again.",
+      "An unexpected error occurred. Please try again or contact support.",
     );
   }
 };
