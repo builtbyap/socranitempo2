@@ -114,6 +114,7 @@ export const signUpAction = async (formData: FormData) => {
       options: {
         data: {
           full_name: fullName,
+          name: fullName,
           email: email,
         }
       },
@@ -136,7 +137,7 @@ export const signUpAction = async (formData: FormData) => {
     console.log("User created in auth:", user.id);
 
     // Wait a moment for the database trigger to create the user profile
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Verify the user was created in the database by the trigger
     try {
@@ -149,14 +150,16 @@ export const signUpAction = async (formData: FormData) => {
       if (verifyError || !verifyUser) {
         console.log("Trigger may have failed, attempting manual user creation...");
         
-        // Fallback: manually create the user profile
+        // Fallback: manually create the user profile with correct schema
         const userProfileData = {
           id: user.id,
           user_id: user.id,
           name: fullName,
           email: email,
-          token_identifier: user.id,
+          token_identifier: email, // Use email as token_identifier per schema
           full_name: fullName,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         };
 
         const { error: manualInsertError } = await supabase
@@ -188,23 +191,29 @@ export const signUpAction = async (formData: FormData) => {
 
     console.log("Sign-up process completed successfully");
     
-    // Create a free tier subscription for the new user
+    // Create a free tier subscription for the new user with correct schema
     try {
       console.log("Creating free tier subscription for user:", user.id);
       const subscriptionData = {
         user_id: user.id,
         status: 'active',
-        price_id: 'free_tier', // You can adjust this based on your pricing structure
-        quantity: 1,
+        price_id: 'free_tier',
+        stripe_price_id: 'free_tier',
+        currency: 'usd',
+        interval: 'year',
+        current_period_start: Math.floor(Date.now() / 1000),
+        current_period_end: Math.floor((Date.now() + 365 * 24 * 60 * 60 * 1000) / 1000), // 1 year from now
         cancel_at_period_end: false,
-        created: new Date().toISOString(),
-        current_period_start: new Date().toISOString(),
-        current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+        amount: 0,
+        started_at: Math.floor(Date.now() / 1000),
+        ends_at: null,
         ended_at: null,
-        cancel_at: null,
         canceled_at: null,
-        trial_start: null,
-        trial_end: null,
+        customer_cancellation_reason: null,
+        customer_cancellation_comment: null,
+        metadata: { plan: 'free_tier', source: 'signup' },
+        custom_field_data: null,
+        customer_id: null,
       };
 
       const { error: subscriptionError } = await supabase
