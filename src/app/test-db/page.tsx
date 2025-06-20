@@ -43,7 +43,7 @@ export default function TestDB() {
       
     } catch (error) {
       console.error("Test failed:", error);
-      setResults({ error: error.message });
+      setResults({ error: error instanceof Error ? error.message : 'An unknown error occurred' });
     } finally {
       setLoading(false);
     }
