@@ -4,10 +4,10 @@ import {
   InfoIcon, 
   UserCircle, 
   Bell,
-  Settings
+  Settings,
+  Crown
 } from "lucide-react";
 import { redirect } from "next/navigation";
-import { SubscriptionCheck } from "@/components/subscription-check";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,8 +33,11 @@ export default async function Dashboard() {
     .eq('id', user.id)
     .single();
 
+  // Check subscription status
+  const isSubscribed = await checkUserSubscription(user.id);
+
   return (
-    <SubscriptionCheck>
+    <>
       <DashboardNavbar />
       <main className="w-full bg-gray-50 min-h-screen">
         <div className="container mx-auto px-4 py-8">
@@ -56,6 +59,18 @@ export default async function Dashboard() {
                 </Button>
               </div>
             </div>
+            
+            {/* Subscription Status */}
+            {!isSubscribed && (
+              <div className="bg-yellow-50 border border-yellow-200 text-sm p-3 px-4 rounded-lg text-yellow-800 flex gap-2 items-center">
+                <Crown className="h-4 w-4" />
+                <span>Upgrade to Premium to unlock all features</span>
+                <Button size="sm" className="ml-auto">
+                  Upgrade Now
+                </Button>
+              </div>
+            )}
+            
             <div className="bg-blue-50 border border-blue-200 text-sm p-3 px-4 rounded-lg text-blue-800 flex gap-2 items-center">
               <InfoIcon size="14" />
               <span>Your dashboard is protected and only visible to authenticated users</span>
@@ -84,7 +99,9 @@ export default async function Dashboard() {
                     <div>
                       <h3 className="font-semibold">{userProfile?.name || 'User'}</h3>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
-                      <Badge variant="secondary" className="mt-1">Premium Member</Badge>
+                      <Badge variant={isSubscribed ? "secondary" : "outline"} className="mt-1">
+                        {isSubscribed ? "Premium Member" : "Free Member"}
+                      </Badge>
                     </div>
                   </div>
                   
@@ -101,7 +118,7 @@ export default async function Dashboard() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Subscription</span>
-                      <span className="text-sm font-medium">{userProfile?.subscription || 'Active'}</span>
+                      <span className="text-sm font-medium">{isSubscribed ? 'Active' : 'Free Plan'}</span>
                     </div>
                   </div>
 
@@ -120,6 +137,27 @@ export default async function Dashboard() {
           </div>
         </div>
       </main>
-    </SubscriptionCheck>
+    </>
   );
+}
+
+// Helper function to check subscription
+async function checkUserSubscription(userId: string) {
+  try {
+    const supabase = await createClient();
+    const { data: subscription, error } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .single();
+
+    if (error) {
+      return false;
+    }
+
+    return !!subscription;
+  } catch (error) {
+    return false;
+  }
 }
