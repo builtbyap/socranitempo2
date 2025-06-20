@@ -143,28 +143,39 @@ export const signUpAction = async (formData: FormData) => {
       const { data: verifyUser, error: verifyError } = await supabase
         .from('users')
         .select('*')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .single();
 
-      if (verifyError) {
-        console.error("Verification error:", verifyError);
-        return encodedRedirect(
-          "error",
-          "/sign-up",
-          "User created but verification failed. Please contact support.",
-        );
-      }
+      if (verifyError || !verifyUser) {
+        console.log("Trigger may have failed, attempting manual user creation...");
+        
+        // Fallback: manually create the user profile
+        const userProfileData = {
+          id: user.id,
+          user_id: user.id,
+          name: fullName,
+          email: email,
+          token_identifier: user.id,
+          full_name: fullName,
+        };
 
-      if (!verifyUser) {
-        console.error("User not found in database after creation");
-        return encodedRedirect(
-          "error",
-          "/sign-up",
-          "User created but not found in database. Please contact support.",
-        );
-      }
+        const { error: manualInsertError } = await supabase
+          .from('users')
+          .insert(userProfileData);
 
-      console.log("User verified in database:", verifyUser);
+        if (manualInsertError) {
+          console.error("Manual user creation failed:", manualInsertError);
+          return encodedRedirect(
+            "error",
+            "/sign-up",
+            "User created but profile setup failed. Please contact support.",
+          );
+        }
+
+        console.log("User profile created manually");
+      } else {
+        console.log("User verified in database:", verifyUser);
+      }
 
     } catch (profileException) {
       console.error("Exception during profile verification:", profileException);

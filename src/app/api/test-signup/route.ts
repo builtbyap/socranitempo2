@@ -53,14 +53,37 @@ export async function POST(request: NextRequest) {
     const { data: verifyUser, error: verifyError } = await supabase
       .from('users')
       .select('*')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .single();
 
     if (verifyError || !verifyUser) {
-      return NextResponse.json(
-        { error: 'User created but verification failed' },
-        { status: 500 }
-      );
+      console.log('Trigger may have failed, attempting manual user creation...');
+      
+      // Fallback: manually create the user profile
+      const userProfileData = {
+        id: user.id,
+        user_id: user.id,
+        name: fullName,
+        email: email,
+        token_identifier: user.id,
+        full_name: fullName,
+      };
+
+      const { error: manualInsertError } = await supabase
+        .from('users')
+        .insert(userProfileData);
+
+      if (manualInsertError) {
+        console.error('Manual user creation failed:', manualInsertError);
+        return NextResponse.json(
+          { error: 'User created but profile setup failed' },
+          { status: 500 }
+        );
+      }
+
+      console.log('User profile created manually');
+    } else {
+      console.log('User verified in database:', verifyUser);
     }
 
     return NextResponse.json({
