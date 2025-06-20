@@ -1,5 +1,5 @@
 import { checkEnvironment, checkDatabaseConnection } from "@/app/actions";
-import { createClient } from "../../supabase/server";
+import { createClient } from "../../../supabase/server";
 
 export default async function DebugPage() {
   const envCheck = checkEnvironment();
