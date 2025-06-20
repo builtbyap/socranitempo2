@@ -49,6 +49,7 @@ export default async function Signup(props: {
                   type="text"
                   placeholder="John Doe"
                   required
+                  autoComplete="name"
                   className="w-full"
                 />
               </div>
@@ -63,6 +64,7 @@ export default async function Signup(props: {
                   type="email"
                   placeholder="you@example.com"
                   required
+                  autoComplete="email"
                   className="w-full"
                 />
               </div>
@@ -78,6 +80,7 @@ export default async function Signup(props: {
                   placeholder="Your password"
                   minLength={6}
                   required
+                  autoComplete="new-password"
                   className="w-full"
                 />
               </div>

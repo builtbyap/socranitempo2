@@ -50,6 +50,7 @@ export default async function ForgotPassword(props: {
                   type="email"
                   placeholder="you@example.com"
                   required
+                  autoComplete="email"
                   className="w-full"
                 />
               </div>
