@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 
 export default function Navbar() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -26,6 +27,13 @@ export default function Navbar() {
         data: { user },
       } = await supabase.auth.getUser();
       setUser(user);
+      
+      if (user) {
+        // Check subscription status
+        const isSub = await checkUserSubscription(user.id);
+        setIsSubscribed(isSub);
+      }
+      
       setLoading(false);
     };
 
@@ -33,16 +41,48 @@ export default function Navbar() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        const isSub = await checkUserSubscription(session.user.id);
+        setIsSubscribed(isSub);
+      } else {
+        setIsSubscribed(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  const checkUserSubscription = async (userId: string) => {
+    try {
+      const supabase = createClient();
+      const { data: subscriptions, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'active');
+
+      if (error) {
+        console.error('Subscription check error:', error);
+        return false;
+      }
+
+      return subscriptions && subscriptions.length > 0;
+    } catch (error) {
+      console.error('Subscription check exception:', error);
+      return false;
+    }
+  };
+
   const handleDashboardClick = () => {
-    console.log("Dashboard button clicked, navigating to /dashboard");
-    router.push("/dashboard");
+    if (isSubscribed) {
+      console.log("Dashboard button clicked, navigating to /dashboard");
+      router.push("/dashboard");
+    } else {
+      console.log("User not subscribed, redirecting to pricing");
+      router.push("/pricing");
+    }
   };
 
   const handleTestClick = () => {
@@ -76,7 +116,7 @@ export default function Navbar() {
           {user ? (
             <>
               <Button onClick={handleDashboardClick} className="bg-blue-600 hover:bg-blue-700">
-                Dashboard
+                {isSubscribed ? "Dashboard" : "Upgrade to Access"}
               </Button>
               <Button onClick={handleTestClick} variant="outline" size="sm">
                 Test

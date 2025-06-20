@@ -7,7 +7,8 @@ import {
   Bell,
   Settings,
   Crown,
-  X
+  X,
+  Lock
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import DashboardStats from "@/components/dashboard-stats";
 import QuickActions from "@/components/quick-actions";
 import RecentActivity from "@/components/recent-activity";
 import { User } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -24,6 +26,7 @@ export default function Dashboard() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,13 +48,19 @@ export default function Dashboard() {
         // Check subscription status
         const isSub = await checkUserSubscription(user.id);
         setIsSubscribed(isSub);
+        
+        // Redirect non-subscribed users to pricing page
+        if (!isSub) {
+          router.push('/pricing');
+          return;
+        }
       }
       
       setLoading(false);
     };
 
     fetchData();
-  }, []);
+  }, [router]);
 
   const checkUserSubscription = async (userId: string) => {
     try {
@@ -96,6 +105,29 @@ export default function Dashboard() {
     );
   }
 
+  // Show subscription required message while redirecting
+  if (!isSubscribed) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <Lock className="h-16 w-16 text-blue-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Premium Access Required</h2>
+            <p className="text-gray-600 mb-6">
+              The dashboard is only available to premium subscribers. Please upgrade your plan to continue.
+            </p>
+            <Button 
+              onClick={() => router.push('/pricing')}
+              className="w-full"
+            >
+              View Pricing Plans
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <DashboardNavbar />
@@ -128,20 +160,14 @@ export default function Dashboard() {
               </div>
             </div>
             
-            {/* Subscription Status */}
-            {!isSubscribed && (
-              <div className="bg-yellow-50 border border-yellow-200 text-sm p-3 px-4 rounded-lg text-yellow-800 flex gap-2 items-center">
-                <Crown className="h-4 w-4" />
-                <span>Upgrade to Premium to unlock all features</span>
-                <Button size="sm" className="ml-auto">
-                  Upgrade Now
-                </Button>
-              </div>
-            )}
+            <div className="bg-green-50 border border-green-200 text-sm p-3 px-4 rounded-lg text-green-800 flex gap-2 items-center">
+              <Crown className="h-4 w-4" />
+              <span>Premium Access Active - All features unlocked</span>
+            </div>
             
             <div className="bg-blue-50 border border-blue-200 text-sm p-3 px-4 rounded-lg text-blue-800 flex gap-2 items-center">
               <InfoIcon size="14" />
-              <span>Your dashboard is protected and only visible to authenticated users</span>
+              <span>Your dashboard is protected and only visible to premium subscribers</span>
             </div>
           </header>
 
@@ -168,8 +194,8 @@ export default function Dashboard() {
                     <div>
                       <h3 className="font-semibold">{userProfile?.name || 'User'}</h3>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
-                      <Badge variant={isSubscribed ? "secondary" : "outline"} className="mt-1">
-                        {isSubscribed ? "Premium Member" : "Free Member"}
+                      <Badge variant="secondary" className="mt-1">
+                        Premium Member
                       </Badge>
                     </div>
                   </div>
@@ -187,7 +213,7 @@ export default function Dashboard() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Subscription</span>
-                      <span className="text-sm font-medium">{isSubscribed ? 'Active' : 'Free Plan'}</span>
+                      <span className="text-sm font-medium">Active</span>
                     </div>
                   </div>
 
