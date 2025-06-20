@@ -1,9 +1,4 @@
-"use client";
-
-import { checkDatabaseConnection, checkEnvironment } from "@/app/actions";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { checkEnvironment, checkDatabaseConnection } from "@/app/actions";
 import { createClient } from "../../supabase/server";
 
 export default async function DebugPage() {
