@@ -106,7 +106,7 @@ export const signUpAction = async (formData: FormData) => {
       );
     }
 
-    // First, create the user in Supabase Auth
+    // Create the user in Supabase Auth (the database trigger will handle creating the user profile)
     console.log("Creating user in Supabase Auth...");
     const { data: { user }, error: authError } = await supabase.auth.signUp({
       email,
@@ -135,61 +135,11 @@ export const signUpAction = async (formData: FormData) => {
 
     console.log("User created in auth:", user.id);
 
-    // Then, create the user profile in the users table
+    // Wait a moment for the database trigger to create the user profile
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Verify the user was created in the database by the trigger
     try {
-      const userProfileData = {
-        id: user.id,
-        user_id: user.id,
-        name: fullName,
-        email: email,
-        token_identifier: user.id,
-        full_name: fullName,
-      };
-
-      console.log("Attempting to insert user profile:", userProfileData);
-
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert(userProfileData);
-
-      if (profileError) {
-        console.error("Profile creation error:", profileError);
-        
-        // Handle specific error cases
-        if (profileError.code === '23505') {
-          return encodedRedirect(
-            "error",
-            "/sign-up",
-            "A user with this email already exists. Please sign in instead.",
-          );
-        }
-        
-        if (profileError.code === '23502') {
-          return encodedRedirect(
-            "error",
-            "/sign-up",
-            "Missing required information. Please fill in all fields.",
-          );
-        }
-
-        if (profileError.code === '42P01') {
-          return encodedRedirect(
-            "error",
-            "/sign-up",
-            "Database table not found. Please contact support.",
-          );
-        }
-
-        return encodedRedirect(
-          "error",
-          "/sign-up",
-          `Database error: ${profileError.message}`,
-        );
-      }
-
-      console.log("User profile created successfully");
-
-      // Verify the user was actually created in the database
       const { data: verifyUser, error: verifyError } = await supabase
         .from('users')
         .select('*')
@@ -217,11 +167,11 @@ export const signUpAction = async (formData: FormData) => {
       console.log("User verified in database:", verifyUser);
 
     } catch (profileException) {
-      console.error("Exception during profile creation:", profileException);
+      console.error("Exception during profile verification:", profileException);
       return encodedRedirect(
         "error",
         "/sign-up",
-        "Error creating user profile. Please try again.",
+        "Error verifying user profile. Please try again.",
       );
     }
 

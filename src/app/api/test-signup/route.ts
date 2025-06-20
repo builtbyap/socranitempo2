@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Create user in Supabase Auth
+    // Create user in Supabase Auth (the database trigger will handle creating the user profile)
     const { data: { user }, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -46,29 +46,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create user profile in database
-    const userProfileData = {
-      id: user.id,
-      user_id: user.id,
-      name: fullName,
-      email: email,
-      token_identifier: user.id,
-      full_name: fullName,
-    };
+    // Wait a moment for the database trigger to create the user profile
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    const { error: profileError } = await supabase
-      .from('users')
-      .insert(userProfileData);
-
-    if (profileError) {
-      console.error('Profile creation error:', profileError);
-      return NextResponse.json(
-        { error: profileError.message },
-        { status: 500 }
-      );
-    }
-
-    // Verify user was created
+    // Verify user was created by the trigger
     const { data: verifyUser, error: verifyError } = await supabase
       .from('users')
       .select('*')
