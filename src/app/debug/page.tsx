@@ -2,18 +2,41 @@ import { checkEnvironment, checkDatabaseConnection } from "@/app/actions";
 import { createClient } from "../../../supabase/server";
 
 export default async function DebugPage() {
-  const envCheck = checkEnvironment();
-  const dbCheck = await checkDatabaseConnection();
+  let envCheck;
+  let dbCheck;
+  let users: any[] = [];
   
-  let users = [];
+  try {
+    envCheck = checkEnvironment();
+  } catch (error) {
+    console.error("Error checking environment:", error);
+    envCheck = {
+      success: false,
+      missing: [],
+      hasUrl: false,
+      hasKey: false
+    };
+  }
+  
+  try {
+    dbCheck = await checkDatabaseConnection();
+  } catch (error) {
+    console.error("Error checking database connection:", error);
+    dbCheck = {
+      success: false,
+      error: "Failed to check database connection"
+    };
+  }
+  
   try {
     const supabase = await createClient();
     const { data, error } = await supabase.from('users').select('*').limit(5);
-    if (!error && data) {
+    if (!error && data && Array.isArray(data)) {
       users = data;
     }
   } catch (error) {
     console.error("Error fetching users:", error);
+    users = [];
   }
 
   return (
@@ -25,10 +48,10 @@ export default async function DebugPage() {
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-semibold mb-4">Environment Variables</h2>
           <div className="space-y-2">
-            <p><strong>Status:</strong> {envCheck.success ? "✅ All set" : "❌ Missing variables"}</p>
-            <p><strong>Supabase URL:</strong> {envCheck.hasUrl ? "✅ Present" : "❌ Missing"}</p>
-            <p><strong>Supabase Key:</strong> {envCheck.hasKey ? "✅ Present" : "❌ Missing"}</p>
-            {envCheck.missing.length > 0 && (
+            <p><strong>Status:</strong> {envCheck?.success ? "✅ All set" : "❌ Missing variables"}</p>
+            <p><strong>Supabase URL:</strong> {envCheck?.hasUrl ? "✅ Present" : "❌ Missing"}</p>
+            <p><strong>Supabase Key:</strong> {envCheck?.hasKey ? "✅ Present" : "❌ Missing"}</p>
+            {envCheck?.missing && envCheck.missing.length > 0 && (
               <p><strong>Missing:</strong> {envCheck.missing.join(", ")}</p>
             )}
           </div>
@@ -38,16 +61,16 @@ export default async function DebugPage() {
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-semibold mb-4">Database Connection</h2>
           <div className="space-y-2">
-            <p><strong>Status:</strong> {dbCheck.success ? "✅ Connected" : "❌ Failed"}</p>
-            {dbCheck.error && <p><strong>Error:</strong> {dbCheck.error}</p>}
-            {dbCheck.message && <p><strong>Message:</strong> {dbCheck.message}</p>}
+            <p><strong>Status:</strong> {dbCheck?.success ? "✅ Connected" : "❌ Failed"}</p>
+            {dbCheck?.error && <p><strong>Error:</strong> {dbCheck.error}</p>}
+            {dbCheck?.message && <p><strong>Message:</strong> {dbCheck.message}</p>}
           </div>
         </div>
 
         {/* Users Table */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-semibold mb-4">Users in Database (Last 5)</h2>
-          {users.length > 0 ? (
+          {users && users.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="min-w-full table-auto">
                 <thead>
@@ -59,12 +82,12 @@ export default async function DebugPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user: any) => (
-                    <tr key={user.id} className="border-b">
-                      <td className="px-4 py-2">{user.id}</td>
-                      <td className="px-4 py-2">{user.name || user.full_name || 'N/A'}</td>
-                      <td className="px-4 py-2">{user.email}</td>
-                      <td className="px-4 py-2">{user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
+                  {users.map((user: any, index: number) => (
+                    <tr key={user?.id || `user-${index}`} className="border-b">
+                      <td className="px-4 py-2">{user?.id || 'N/A'}</td>
+                      <td className="px-4 py-2">{user?.name || user?.full_name || 'N/A'}</td>
+                      <td className="px-4 py-2">{user?.email || 'N/A'}</td>
+                      <td className="px-4 py-2">{user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
                     </tr>
                   ))}
                 </tbody>
