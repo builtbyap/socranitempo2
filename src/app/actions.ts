@@ -4,6 +4,29 @@ import { encodedRedirect } from "@/utils/utils";
 import { redirect } from "next/navigation";
 import { createClient } from "../../supabase/server";
 
+// Diagnostic function to check database connection and table structure
+export const checkDatabaseConnection = async () => {
+  try {
+    const supabase = await createClient();
+    
+    // Test basic connection
+    const { data, error } = await supabase
+      .from('users')
+      .select('count')
+      .limit(1);
+    
+    if (error) {
+      console.error("Database connection test failed:", error);
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true, message: "Database connection successful" };
+  } catch (err) {
+    console.error("Database connection exception:", err);
+    return { success: false, error: "Database connection failed" };
+  }
+};
+
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
   const password = formData.get("password")?.toString();
@@ -18,42 +41,58 @@ export const signUpAction = async (formData: FormData) => {
     );
   }
 
-  const { data: { user }, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: fullName,
-        email: email,
-      }
-    },
-  });
-
-  if (error) {
-    return encodedRedirect("error", "/sign-up", error.message);
-  }
-
-  if (user) {
-    try {
-      // Use upsert to handle cases where user might already exist
-      const { error: updateError } = await supabase
-        .from('users')
-        .upsert({
-          id: user.id,
-          user_id: user.id,
-          name: fullName,
-          email: email,
-          token_identifier: user.id,
+  try {
+    // First, create the user in Supabase Auth
+    const { data: { user }, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
           full_name: fullName,
-        }, {
-          onConflict: 'id' // Update if user already exists
-        });
+          email: email,
+        }
+      },
+    });
 
-      if (updateError) {
-        console.error("Database error:", updateError);
+    if (authError) {
+      console.error("Auth error:", authError);
+      return encodedRedirect("error", "/sign-up", authError.message);
+    }
+
+    if (!user) {
+      console.error("No user returned from auth signup");
+      return encodedRedirect(
+        "error", 
+        "/sign-up", 
+        "Failed to create user account. Please try again."
+      );
+    }
+
+    console.log("User created in auth:", user.id);
+
+    // Then, create the user profile in the users table
+    try {
+      const userProfileData = {
+        id: user.id,
+        user_id: user.id,
+        name: fullName,
+        email: email,
+        token_identifier: user.id,
+        full_name: fullName,
+        // Let the database handle created_at and updated_at automatically
+      };
+
+      console.log("Attempting to insert user profile:", userProfileData);
+
+      const { error: profileError } = await supabase
+        .from('users')
+        .insert(userProfileData);
+
+      if (profileError) {
+        console.error("Profile creation error:", profileError);
         
         // Handle specific error cases
-        if (updateError.code === '23505') { // Unique constraint violation
+        if (profileError.code === '23505') {
           return encodedRedirect(
             "error",
             "/sign-up",
@@ -61,35 +100,54 @@ export const signUpAction = async (formData: FormData) => {
           );
         }
         
-        if (updateError.code === '23502') { // Not null constraint violation
+        if (profileError.code === '23502') {
           return encodedRedirect(
             "error",
             "/sign-up",
             "Missing required information. Please fill in all fields.",
           );
         }
-        
+
+        if (profileError.code === '42P01') {
+          return encodedRedirect(
+            "error",
+            "/sign-up",
+            "Database table not found. Please contact support.",
+          );
+        }
+
         return encodedRedirect(
           "error",
           "/sign-up",
-          `Error creating user profile: ${updateError.message}`,
+          `Database error: ${profileError.message}`,
         );
       }
-    } catch (err) {
-      console.error("Unexpected error:", err);
+
+      console.log("User profile created successfully");
+
+    } catch (profileException) {
+      console.error("Exception during profile creation:", profileException);
       return encodedRedirect(
         "error",
         "/sign-up",
         "Error creating user profile. Please try again.",
       );
     }
-  }
 
-  return encodedRedirect(
-    "success",
-    "/sign-up",
-    "Thanks for signing up! Please check your email for a verification link.",
-  );
+    return encodedRedirect(
+      "success",
+      "/sign-up",
+      "Thanks for signing up! Please check your email for a verification link.",
+    );
+
+  } catch (exception) {
+    console.error("Unexpected error during signup:", exception);
+    return encodedRedirect(
+      "error",
+      "/sign-up",
+      "An unexpected error occurred. Please try again.",
+    );
+  }
 };
 
 export const signInAction = async (formData: FormData) => {
