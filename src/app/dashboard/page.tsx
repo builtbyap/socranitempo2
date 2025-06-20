@@ -19,6 +19,7 @@ import QuickActions from "@/components/quick-actions";
 import RecentActivity from "@/components/recent-activity";
 import { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import { DataService } from "@/lib/data-service";
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -40,30 +41,30 @@ export default function Dashboard() {
 
       if (user) {
         console.log('🔍 Fetching user profile...');
-        // Fetch user profile data - use user_id instead of id to match RLS policy
-        const { data: profile, error: profileError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-        
-        console.log('📋 Profile data:', { profile, profileError });
-        setUserProfile(profile);
+        try {
+          // Use DataService to fetch user profile
+          const profile = await DataService.getUserProfile(user.id);
+          console.log('📋 Profile data:', profile);
+          setUserProfile(profile);
 
-        // Check subscription status
-        console.log('🔍 Checking subscription status...');
-        const isSub = await checkUserSubscription(user.id);
-        console.log('🎯 Final subscription result:', isSub);
-        setIsSubscribed(isSub);
-        
-        // Redirect non-subscribed users to pricing page
-        if (!isSub) {
-          console.log('🔄 Redirecting to pricing page...');
-          router.push('/pricing');
-          return;
+          // Check subscription status using DataService
+          console.log('🔍 Checking subscription status...');
+          const isSub = await DataService.checkUserSubscription(user.id);
+          console.log('🎯 Final subscription result:', isSub);
+          setIsSubscribed(isSub);
+          
+          // Redirect non-subscribed users to pricing page
+          if (!isSub) {
+            console.log('🔄 Redirecting to pricing page...');
+            router.push('/pricing');
+            return;
+          }
+          
+          console.log('✅ User has active subscription, allowing dashboard access');
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          // If there's an error, still allow access but log it
         }
-        
-        console.log('✅ User has active subscription, allowing dashboard access');
       }
       
       console.log('✅ Setting loading to false');
@@ -72,33 +73,6 @@ export default function Dashboard() {
 
     fetchData();
   }, [router]);
-
-  const checkUserSubscription = async (userId: string) => {
-    try {
-      console.log('🔍 Checking subscription for user:', userId);
-      const supabase = createClient();
-      const { data: subscriptions, error } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('status', 'active');
-
-      console.log('📊 Subscription query result:', { subscriptions, error });
-
-      if (error) {
-        console.error('❌ Subscription check error:', error);
-        return false;
-      }
-
-      // Check if any active subscriptions exist
-      const hasSubscription = subscriptions && subscriptions.length > 0;
-      console.log('✅ Subscription status:', hasSubscription);
-      return hasSubscription;
-    } catch (error) {
-      console.error('❌ Subscription check exception:', error);
-      return false;
-    }
-  };
 
   if (loading) {
     return (
@@ -242,13 +216,13 @@ export default function Dashboard() {
           )}
 
           {/* Stats Grid */}
-          <DashboardStats />
+          <DashboardStats userId={user.id} />
 
           {/* Quick Actions */}
           <QuickActions />
 
           {/* Recent Activity */}
-          <RecentActivity />
+          <RecentActivity userId={user.id} />
         </div>
       </main>
     </>
