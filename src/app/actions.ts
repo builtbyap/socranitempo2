@@ -35,32 +35,52 @@ export const signUpAction = async (formData: FormData) => {
 
   if (user) {
     try {
-
+      // Use upsert to handle cases where user might already exist
       const { error: updateError } = await supabase
         .from('users')
-        .insert({
+        .upsert({
           id: user.id,
           user_id: user.id,
           name: fullName,
           email: email,
           token_identifier: user.id,
-          created_at: new Date().toISOString()
+          full_name: fullName,
+        }, {
+          onConflict: 'id' // Update if user already exists
         });
 
       if (updateError) {
-        // Error handling without console.error
+        console.error("Database error:", updateError);
+        
+        // Handle specific error cases
+        if (updateError.code === '23505') { // Unique constraint violation
+          return encodedRedirect(
+            "error",
+            "/sign-up",
+            "A user with this email already exists. Please sign in instead.",
+          );
+        }
+        
+        if (updateError.code === '23502') { // Not null constraint violation
+          return encodedRedirect(
+            "error",
+            "/sign-up",
+            "Missing required information. Please fill in all fields.",
+          );
+        }
+        
         return encodedRedirect(
           "error",
           "/sign-up",
-          "Error updating user. Please try again.",
+          `Error creating user profile: ${updateError.message}`,
         );
       }
     } catch (err) {
-      // Error handling without console.error
+      console.error("Unexpected error:", err);
       return encodedRedirect(
         "error",
         "/sign-up",
-        "Error updating user. Please try again.",
+        "Error creating user profile. Please try again.",
       );
     }
   }
