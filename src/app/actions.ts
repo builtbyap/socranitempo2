@@ -187,6 +187,41 @@ export const signUpAction = async (formData: FormData) => {
     }
 
     console.log("Sign-up process completed successfully");
+    
+    // Create a free tier subscription for the new user
+    try {
+      console.log("Creating free tier subscription for user:", user.id);
+      const subscriptionData = {
+        user_id: user.id,
+        status: 'active',
+        price_id: 'free_tier', // You can adjust this based on your pricing structure
+        quantity: 1,
+        cancel_at_period_end: false,
+        created: new Date().toISOString(),
+        current_period_start: new Date().toISOString(),
+        current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+        ended_at: null,
+        cancel_at: null,
+        canceled_at: null,
+        trial_start: null,
+        trial_end: null,
+      };
+
+      const { error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .insert(subscriptionData);
+
+      if (subscriptionError) {
+        console.error("Failed to create subscription:", subscriptionError);
+        // Don't fail the signup, just log the error
+      } else {
+        console.log("Free tier subscription created successfully");
+      }
+    } catch (subscriptionException) {
+      console.error("Exception creating subscription:", subscriptionException);
+      // Don't fail the signup, just log the error
+    }
+    
     return encodedRedirect(
       "success",
       "/sign-up",

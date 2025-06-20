@@ -62,6 +62,8 @@ export default function Dashboard() {
           router.push('/pricing');
           return;
         }
+        
+        console.log('✅ User has active subscription, allowing dashboard access');
       }
       
       console.log('✅ Setting loading to false');
