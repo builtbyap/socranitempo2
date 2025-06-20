@@ -1,40 +1,98 @@
+"use client";
 import DashboardNavbar from "@/components/dashboard-navbar";
-import { createClient } from "../../../supabase/server";
+import { createClient } from "../../../supabase/client";
 import { 
   InfoIcon, 
   UserCircle, 
   Bell,
   Settings,
-  Crown
+  Crown,
+  X
 } from "lucide-react";
-import { redirect } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import DashboardStats from "@/components/dashboard-stats";
 import QuickActions from "@/components/quick-actions";
 import RecentActivity from "@/components/recent-activity";
+import { User } from "@supabase/supabase-js";
 
-export default async function Dashboard() {
-  const supabase = await createClient();
+export default function Dashboard() {
+  const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  useEffect(() => {
+    const fetchData = async () => {
+      const supabase = createClient();
+      
+      // Get user
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
 
-  if (!user) {
-    return redirect("/sign-in");
+      if (user) {
+        // Fetch user profile data
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        setUserProfile(profile);
+
+        // Check subscription status
+        const isSub = await checkUserSubscription(user.id);
+        setIsSubscribed(isSub);
+      }
+      
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
+
+  const checkUserSubscription = async (userId: string) => {
+    try {
+      const supabase = createClient();
+      const { data: subscription, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .single();
+
+      if (error) {
+        return false;
+      }
+
+      return !!subscription;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
-  // Fetch user profile data
-  const { data: userProfile } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-
-  // Check subscription status
-  const isSubscribed = await checkUserSubscription(user.id);
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Please sign in to access the dashboard.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -49,6 +107,14 @@ export default async function Dashboard() {
                 <p className="text-gray-600 mt-1">Welcome back, {userProfile?.name || user.email}</p>
               </div>
               <div className="flex gap-3">
+                <Button 
+                  onClick={() => setShowProfile(true)}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <UserCircle className="h-4 w-4" />
+                  Profile
+                </Button>
                 <Button variant="outline" size="sm">
                   <Bell className="h-4 w-4 mr-2" />
                   Notifications
@@ -77,21 +143,22 @@ export default async function Dashboard() {
             </div>
           </header>
 
-          {/* Stats Grid */}
-          <DashboardStats />
-
-          {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* User Profile Section */}
-            <div className="lg:col-span-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <UserCircle className="h-5 w-5" />
-                    Profile Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+          {/* Profile Modal */}
+          {showProfile && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold">Profile Information</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowProfile(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                <div className="space-y-4">
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
                       <UserCircle className="h-8 w-8 text-blue-600" />
@@ -125,13 +192,21 @@ export default async function Dashboard() {
                   <Button className="w-full" variant="outline">
                     Edit Profile
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </div>
+          )}
 
+          {/* Stats Grid */}
+          <DashboardStats />
+
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Recent Activity & Quick Actions */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="space-y-6">
               <QuickActions />
+            </div>
+            <div className="space-y-6">
               <RecentActivity />
             </div>
           </div>
@@ -139,25 +214,4 @@ export default async function Dashboard() {
       </main>
     </>
   );
-}
-
-// Helper function to check subscription
-async function checkUserSubscription(userId: string) {
-  try {
-    const supabase = await createClient();
-    const { data: subscription, error } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .single();
-
-    if (error) {
-      return false;
-    }
-
-    return !!subscription;
-  } catch (error) {
-    return false;
-  }
 }
