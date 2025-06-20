@@ -290,18 +290,24 @@ export const signOutAction = async () => {
 };
 
 export const checkUserSubscription = async (userId: string) => {
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  const { data: subscription, error } = await supabase
-    .from('subscriptions')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .single();
+    const { data: subscription, error } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .single();
 
-  if (error) {
+    if (error) {
+      console.error('Subscription check error:', error);
+      return false;
+    }
+
+    return !!subscription;
+  } catch (error) {
+    console.error('Subscription check exception:', error);
     return false;
   }
-
-  return !!subscription;
 };

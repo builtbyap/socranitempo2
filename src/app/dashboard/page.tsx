@@ -34,11 +34,11 @@ export default function Dashboard() {
       setUser(user);
 
       if (user) {
-        // Fetch user profile data
+        // Fetch user profile data - use user_id instead of id to match RLS policy
         const { data: profile } = await supabase
           .from('users')
           .select('*')
-          .eq('id', user.id)
+          .eq('user_id', user.id)
           .single();
         setUserProfile(profile);
 
@@ -64,11 +64,13 @@ export default function Dashboard() {
         .single();
 
       if (error) {
+        console.error('Subscription check error:', error);
         return false;
       }
 
       return !!subscription;
     } catch (error) {
+      console.error('Subscription check exception:', error);
       return false;
     }
   };
@@ -200,16 +202,11 @@ export default function Dashboard() {
           {/* Stats Grid */}
           <DashboardStats />
 
-          {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Recent Activity & Quick Actions */}
-            <div className="space-y-6">
-              <QuickActions />
-            </div>
-            <div className="space-y-6">
-              <RecentActivity />
-            </div>
-          </div>
+          {/* Quick Actions */}
+          <QuickActions />
+
+          {/* Recent Activity */}
+          <RecentActivity />
         </div>
       </main>
     </>
