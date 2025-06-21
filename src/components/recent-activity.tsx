@@ -26,11 +26,14 @@ interface RecentActivityProps {
 export default function RecentActivity({ userId }: RecentActivityProps) {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchRecentActivity = async () => {
       try {
+        console.log('📅 Fetching recent activity for:', userId);
         const recentActivity = await DataService.getRecentActivity(userId, 5);
+        console.log('📅 Recent activity received:', recentActivity);
         
         // Transform the data to match our ActivityItem interface
         const transformedActivities: ActivityItem[] = recentActivity.map((item: any) => {
@@ -52,6 +55,7 @@ export default function RecentActivity({ userId }: RecentActivityProps) {
         setActivities(transformedActivities);
       } catch (error) {
         console.error('Error fetching recent activity:', error);
+        setError('Failed to load recent activity');
         // Fallback to empty array
         setActivities([]);
       } finally {
@@ -113,6 +117,29 @@ export default function RecentActivity({ userId }: RecentActivityProps) {
     if (time.includes('week')) return <Clock className="h-3 w-3" />;
     return <Clock className="h-3 w-3" />;
   };
+
+  // Error state
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-red-700">Recent Activity</CardTitle>
+            <CardDescription className="text-red-600">Unable to load recent activity</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" disabled>
+            View All
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-red-600">
+            <p>Failed to load recent activity</p>
+            <p className="text-sm">Please try refreshing the page</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (loading) {
     return (

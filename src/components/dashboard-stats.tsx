@@ -50,14 +50,18 @@ interface DashboardStatsProps {
 export default function DashboardStats({ userId }: DashboardStatsProps) {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
+        console.log('📊 Fetching user stats for:', userId);
         const userStats = await DataService.getUserStats(userId);
+        console.log('📊 User stats received:', userStats);
         setStats(userStats);
       } catch (error) {
         console.error('Error fetching user stats:', error);
+        setError('Failed to load statistics');
         // Fallback to default stats
         setStats({
           total_applications: 0,
@@ -77,6 +81,25 @@ export default function DashboardStats({ userId }: DashboardStatsProps) {
       fetchStats();
     }
   }, [userId]);
+
+  // Error state
+  if (error) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {[1, 2, 3, 4].map((index) => (
+          <Card key={index} className="border-red-200 bg-red-50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-red-700">Error Loading</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">--</div>
+              <p className="text-xs text-red-500">Unable to load data</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
 
   const statsData = [
     {

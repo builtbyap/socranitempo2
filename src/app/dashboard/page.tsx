@@ -20,59 +20,114 @@ import RecentActivity from "@/components/recent-activity";
 import { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { DataService } from "@/lib/data-service";
+import { ErrorBoundary } from "@/components/error-boundary";
 
-export default function Dashboard() {
+function DashboardContent() {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     const fetchData = async () => {
-      console.log('🚀 Starting dashboard data fetch...');
-      const supabase = createClient();
-      
-      // Get user
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log('👤 User data:', user);
-      setUser(user);
-
-      if (user) {
-        console.log('🔍 Fetching user profile...');
-        try {
-          // Use DataService to fetch user profile
-          const profile = await DataService.getUserProfile(user.id);
-          console.log('📋 Profile data:', profile);
-          setUserProfile(profile);
-
-          // Check subscription status using DataService
-          console.log('🔍 Checking subscription status...');
-          const isSub = await DataService.checkUserSubscription(user.id);
-          console.log('🎯 Final subscription result:', isSub);
-          setIsSubscribed(isSub);
-          
-          // Redirect non-subscribed users to pricing page
-          if (!isSub) {
-            console.log('🔄 Redirecting to pricing page...');
-            router.push('/pricing');
-            return;
-          }
-          
-          console.log('✅ User has active subscription, allowing dashboard access');
-        } catch (error) {
-          console.error('Error fetching user data:', error);
-          // If there's an error, still allow access but log it
+      try {
+        console.log('🚀 Starting dashboard data fetch...');
+        const supabase = createClient();
+        
+        // Get user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error('Error getting user:', userError);
+          setError('Authentication error. Please sign in again.');
+          setLoading(false);
+          return;
         }
+        
+        console.log('👤 User data:', user);
+        setUser(user);
+
+        if (user) {
+          console.log('🔍 Fetching user profile...');
+          try {
+            // Use DataService to fetch user profile
+            const profile = await DataService.getUserProfile(user.id);
+            console.log('📋 Profile data:', profile);
+            setUserProfile(profile);
+
+            // Check subscription status using DataService
+            console.log('🔍 Checking subscription status...');
+            const isSub = await DataService.checkUserSubscription(user.id);
+            console.log('🎯 Final subscription result:', isSub);
+            setIsSubscribed(isSub);
+            
+            // Redirect non-subscribed users to pricing page
+            if (!isSub) {
+              console.log('🔄 Redirecting to pricing page...');
+              router.push('/pricing');
+              return;
+            }
+            
+            console.log('✅ User has active subscription, allowing dashboard access');
+          } catch (profileError) {
+            console.error('Error fetching user data:', profileError);
+            // If there's an error, still allow access but log it
+            setError('Unable to load user profile. Some features may be limited.');
+          }
+        } else {
+          // No user found, redirect to sign in
+          router.push('/sign-in');
+          return;
+        }
+        
+        console.log('✅ Setting loading to false');
+        setLoading(false);
+      } catch (fetchError) {
+        console.error('Unexpected error in dashboard data fetch:', fetchError);
+        setError('An unexpected error occurred. Please try refreshing the page.');
+        setLoading(false);
       }
-      
-      console.log('✅ Setting loading to false');
-      setLoading(false);
     };
 
     fetchData();
   }, [router]);
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <div className="text-red-500 mb-4">
+              <svg className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Something went wrong</h2>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <div className="space-y-2">
+              <Button 
+                onClick={() => window.location.reload()}
+                className="w-full"
+              >
+                Refresh Page
+              </Button>
+              <Button 
+                onClick={() => router.push('/sign-in')}
+                variant="outline"
+                className="w-full"
+              >
+                Sign In Again
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -90,6 +145,12 @@ export default function Dashboard() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">Please sign in to access the dashboard.</p>
+          <Button 
+            onClick={() => router.push('/sign-in')}
+            className="mt-4"
+          >
+            Sign In
+          </Button>
         </div>
       </div>
     );
@@ -226,5 +287,13 @@ export default function Dashboard() {
         </div>
       </main>
     </>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <ErrorBoundary>
+      <DashboardContent />
+    </ErrorBoundary>
   );
 }
