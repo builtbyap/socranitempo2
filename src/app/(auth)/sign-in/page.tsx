@@ -1,4 +1,4 @@
-import { signInAction } from "@/app/actions";
+import { signInAction, resendConfirmationEmail } from "@/app/actions";
 import { FormMessage, Message } from "@/components/form-message";
 import Navbar from "@/components/navbar";
 import { SubmitButton } from "@/components/submit-button";
@@ -87,6 +87,28 @@ export default async function SignInPage({ searchParams }: LoginProps) {
             >
               Sign in
             </SubmitButton>
+
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground mb-2">
+                Didn't receive confirmation email?
+              </p>
+              <form action={resendConfirmationEmail} className="inline">
+                <input type="hidden" name="email" id="resend-email" />
+                <button
+                  type="submit"
+                  className="text-xs text-primary hover:underline transition-all"
+                  onClick={() => {
+                    const emailInput = document.getElementById('email') as HTMLInputElement;
+                    const resendEmailInput = document.getElementById('resend-email') as HTMLInputElement;
+                    if (emailInput && resendEmailInput) {
+                      resendEmailInput.value = emailInput.value;
+                    }
+                  }}
+                >
+                  Resend confirmation email
+                </button>
+              </form>
+            </div>
 
             <FormMessage message={message} />
           </form>

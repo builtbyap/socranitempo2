@@ -116,7 +116,10 @@ export const signUpAction = async (formData: FormData) => {
           full_name: fullName,
           name: fullName,
           email: email,
-        }
+        },
+        // For development/testing, you can set emailConfirm to false to bypass email confirmation
+        // In production, remove this line to require email confirmation
+        emailConfirm: false
       },
     });
 
@@ -289,16 +292,54 @@ export const signInAction = async (formData: FormData) => {
   const password = formData.get("password") as string;
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
   if (error) {
+    console.error('Sign-in error:', error);
+    
+    // Handle specific email confirmation error
+    if (error.message.includes('Email not confirmed') || error.message.includes('email not confirmed')) {
+      return encodedRedirect(
+        "error", 
+        "/sign-in", 
+        "Please check your email and click the confirmation link before signing in. If you didn't receive the email, please contact support."
+      );
+    }
+    
     return encodedRedirect("error", "/sign-in", error.message);
   }
 
+  console.log('Sign-in successful:', data.user?.email);
   return redirect("/dashboard");
+};
+
+// Function to resend confirmation email
+export const resendConfirmationEmail = async (formData: FormData) => {
+  const email = formData.get("email") as string;
+  const supabase = await createClient();
+
+  if (!email) {
+    return encodedRedirect("error", "/sign-in", "Email is required");
+  }
+
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email: email,
+  });
+
+  if (error) {
+    console.error('Resend confirmation error:', error);
+    return encodedRedirect("error", "/sign-in", error.message);
+  }
+
+  return encodedRedirect(
+    "success", 
+    "/sign-in", 
+    "Confirmation email sent! Please check your inbox and click the confirmation link."
+  );
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {
