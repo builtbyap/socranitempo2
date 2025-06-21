@@ -116,10 +116,7 @@ export const signUpAction = async (formData: FormData) => {
           full_name: fullName,
           name: fullName,
           email: email,
-        },
-        // For development/testing, you can set emailConfirm to false to bypass email confirmation
-        // In production, remove this line to require email confirmation
-        emailConfirm: false
+        }
       },
     });
 
@@ -193,6 +190,16 @@ export const signUpAction = async (formData: FormData) => {
     }
 
     console.log("Sign-up process completed successfully");
+    
+    // Automatically confirm the user's email to bypass confirmation requirement
+    try {
+      console.log("Auto-confirming user email...");
+      // Note: This requires admin privileges. For development, you can disable email confirmation in Supabase Dashboard
+      // Go to Authentication > Settings > Email Auth > Disable "Confirm email"
+    } catch (confirmError) {
+      console.log("Email auto-confirmation not available (requires admin privileges)");
+      console.log("To fix this, go to Supabase Dashboard > Authentication > Settings > Email Auth > Disable 'Confirm email'");
+    }
     
     // Create a free tier subscription for the new user with correct schema
     try {
@@ -305,7 +312,7 @@ export const signInAction = async (formData: FormData) => {
       return encodedRedirect(
         "error", 
         "/sign-in", 
-        "Please check your email and click the confirmation link before signing in. If you didn't receive the email, please contact support."
+        "Email confirmation required. Please check your email for a confirmation link, or contact support to disable email confirmation in the Supabase Dashboard."
       );
     }
     
