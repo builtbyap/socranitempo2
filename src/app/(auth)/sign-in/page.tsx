@@ -11,10 +11,6 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import React from "react";
 import { useSearchParams } from "next/navigation";
 
-interface LoginProps {
-  searchParams?: Promise<Message>;
-}
-
 function SignInContent() {
   const searchParams = useSearchParams();
   const [message, setMessage] = React.useState<Message | null>(null);
@@ -28,14 +24,14 @@ function SignInContent() {
         // Parse search params from URL
         const success = searchParams.get('success');
         const error = searchParams.get('error');
-        const message = searchParams.get('message');
+        const messageText = searchParams.get('message');
         
-        if (success || error || message) {
-          setMessage({
-            success: success || undefined,
-            error: error || undefined,
-            message: message || undefined
-          });
+        if (success) {
+          setMessage({ success });
+        } else if (error) {
+          setMessage({ error });
+        } else if (messageText) {
+          setMessage({ message: messageText });
         }
       } catch (error) {
         console.error('Error loading search params:', error);
