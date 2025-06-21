@@ -273,15 +273,45 @@ export class DataService {
   // Subscription Operations
   static async getUserSubscription(userId: string) {
     const supabase = this.getClient();
+    
+    // First, try to get the user's user_id from the users table
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('user_id')
+      .eq('id', userId)
+      .single();
+
+    if (userError) {
+      console.error('Error fetching user data for subscription:', userError);
+      // Fallback: use the auth user ID directly
+      console.log('Using auth user ID as fallback for subscription check');
+    }
+
+    const subscriptionUserId = userData?.user_id || userId;
+    console.log('Getting subscription for user_id:', subscriptionUserId);
+
     const { data, error } = await supabase
       .from('subscriptions')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', subscriptionUserId)
       .eq('status', 'active')
       .single();
     
     if (error && error.code !== 'PGRST116') throw error;
     return data;
+  }
+
+  // Helper method for subscription check
+  static async checkUserSubscription(userId: string): Promise<boolean> {
+    try {
+      const subscription = await this.getUserSubscription(userId);
+      const hasSubscription = !!subscription;
+      console.log('DataService subscription check result:', hasSubscription);
+      return hasSubscription;
+    } catch (error) {
+      console.error('DataService subscription check error:', error);
+      return false;
+    }
   }
 
   // Dashboard Data Aggregation
@@ -304,16 +334,6 @@ export class DataService {
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       throw error;
-    }
-  }
-
-  // Helper method for subscription check
-  static async checkUserSubscription(userId: string): Promise<boolean> {
-    try {
-      const subscription = await this.getUserSubscription(userId);
-      return !!subscription;
-    } catch {
-      return false;
     }
   }
 

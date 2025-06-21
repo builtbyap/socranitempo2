@@ -194,8 +194,25 @@ export const signUpAction = async (formData: FormData) => {
     // Create a free tier subscription for the new user with correct schema
     try {
       console.log("Creating free tier subscription for user:", user.id);
+      
+      // First, ensure we have the correct user_id from the users table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('user_id')
+        .eq('id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        console.error("Failed to get user data for subscription:", userError);
+        // Try to use the auth user ID as fallback
+        console.log("Using auth user ID as fallback for subscription");
+      }
+
+      const subscriptionUserId = userData?.user_id || user.id;
+      console.log("Using user_id for subscription:", subscriptionUserId);
+
       const subscriptionData = {
-        user_id: user.id,
+        user_id: subscriptionUserId,
         status: 'active',
         price_id: 'free_tier',
         stripe_price_id: 'free_tier',
@@ -216,15 +233,28 @@ export const signUpAction = async (formData: FormData) => {
         customer_id: null,
       };
 
-      const { error: subscriptionError } = await supabase
+      const { data: subscriptionResult, error: subscriptionError } = await supabase
         .from('subscriptions')
-        .insert(subscriptionData);
+        .insert(subscriptionData)
+        .select();
 
       if (subscriptionError) {
         console.error("Failed to create subscription:", subscriptionError);
         // Don't fail the signup, just log the error
       } else {
-        console.log("Free tier subscription created successfully");
+        console.log("Free tier subscription created successfully:", subscriptionResult);
+        
+        // Also update the user's subscription field for backward compatibility
+        const { error: userUpdateError } = await supabase
+          .from('users')
+          .update({ subscription: 'active' })
+          .eq('user_id', subscriptionUserId);
+        
+        if (userUpdateError) {
+          console.error("Failed to update user subscription field:", userUpdateError);
+        } else {
+          console.log("User subscription field updated successfully");
+        }
       }
     } catch (subscriptionException) {
       console.error("Exception creating subscription:", subscriptionException);
@@ -348,10 +378,27 @@ export const checkUserSubscription = async (userId: string) => {
   try {
     const supabase = await createClient();
 
+    // First, try to get the user's user_id from the users table
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('user_id, subscription')
+      .eq('id', userId)
+      .single();
+
+    if (userError) {
+      console.error('Error fetching user data:', userError);
+      // Fallback: use the auth user ID directly
+      console.log('Using auth user ID as fallback for subscription check');
+    }
+
+    const subscriptionUserId = userData?.user_id || userId;
+    console.log('Checking subscription for user_id:', subscriptionUserId);
+
+    // Check for active subscriptions
     const { data: subscriptions, error } = await supabase
       .from('subscriptions')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', subscriptionUserId)
       .eq('status', 'active');
 
     if (error) {
@@ -360,7 +407,15 @@ export const checkUserSubscription = async (userId: string) => {
     }
 
     // Check if any active subscriptions exist
-    return subscriptions && subscriptions.length > 0;
+    const hasActiveSubscription = subscriptions && subscriptions.length > 0;
+    console.log('Active subscriptions found:', hasActiveSubscription, subscriptions?.length || 0);
+
+    // Also check the user's subscription field for backward compatibility
+    if (userData?.subscription === 'active' && !hasActiveSubscription) {
+      console.log('User has subscription field set to active, but no subscription record found');
+    }
+
+    return hasActiveSubscription;
   } catch (error) {
     console.error('Subscription check exception:', error);
     return false;
