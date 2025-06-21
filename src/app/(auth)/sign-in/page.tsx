@@ -11,64 +11,33 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import React from "react";
 import { useSearchParams } from "next/navigation";
 
+// Force dynamic rendering to prevent prerender errors
+export const dynamic = 'force-dynamic';
+
 function SignInContent() {
   const searchParams = useSearchParams();
   const [message, setMessage] = React.useState<Message | null>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
-    const loadSearchParams = async () => {
-      try {
-        setLoading(true);
-        // Parse search params from URL
-        const success = searchParams.get('success');
-        const error = searchParams.get('error');
-        const messageText = searchParams.get('message');
-        
-        if (success) {
-          setMessage({ success });
-        } else if (error) {
-          setMessage({ error });
-        } else if (messageText) {
-          setMessage({ message: messageText });
-        }
-      } catch (error) {
-        console.error('Error loading search params:', error);
-        setError('Failed to load page data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSearchParams();
+    setMounted(true);
+    
+    // Parse search params from URL
+    const success = searchParams.get('success');
+    const error = searchParams.get('error');
+    const messageText = searchParams.get('message');
+    
+    if (success) {
+      setMessage({ success });
+    } else if (error) {
+      setMessage({ error });
+    } else if (messageText) {
+      setMessage({ message: messageText });
+    }
   }, [searchParams]);
 
-  // Error state
-  if (error) {
-    return (
-      <div className="flex h-screen w-full flex-1 items-center justify-center p-4 sm:max-w-md">
-        <div className="text-center">
-          <div className="text-red-500 mb-4">
-            <svg className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Something went wrong</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Refresh Page
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Loading state
-  if (loading) {
+  // Don't render anything until mounted to prevent hydration issues
+  if (!mounted) {
     return (
       <div className="flex h-screen w-full flex-1 items-center justify-center p-4 sm:max-w-md">
         <div className="text-center">
