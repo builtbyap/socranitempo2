@@ -1,3 +1,5 @@
+"use client";
+
 import { signInAction, resendConfirmationEmail } from "@/app/actions";
 import { FormMessage, Message } from "@/components/form-message";
 import Navbar from "@/components/navbar";
@@ -7,22 +9,34 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { ErrorBoundary } from "@/components/error-boundary";
 import React from "react";
+import { useSearchParams } from "next/navigation";
 
 interface LoginProps {
-  searchParams: Promise<Message>;
+  searchParams?: Promise<Message>;
 }
 
-function SignInContent({ searchParams }: LoginProps) {
-  // Handle the async searchParams safely
+function SignInContent() {
+  const searchParams = useSearchParams();
   const [message, setMessage] = React.useState<Message | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const loadSearchParams = async () => {
       try {
-        const resolvedMessage = await searchParams;
-        setMessage(resolvedMessage);
+        setLoading(true);
+        // Parse search params from URL
+        const success = searchParams.get('success');
+        const error = searchParams.get('error');
+        const message = searchParams.get('message');
+        
+        if (success || error || message) {
+          setMessage({
+            success: success || undefined,
+            error: error || undefined,
+            message: message || undefined
+          });
+        }
       } catch (error) {
         console.error('Error loading search params:', error);
         setError('Failed to load page data');
@@ -69,7 +83,7 @@ function SignInContent({ searchParams }: LoginProps) {
     );
   }
 
-  if (message && "message" in message) {
+  if (message && ("message" in message || "success" in message || "error" in message)) {
     return (
       <div className="flex h-screen w-full flex-1 items-center justify-center p-4 sm:max-w-md">
         <FormMessage message={message} />
@@ -174,10 +188,10 @@ function SignInContent({ searchParams }: LoginProps) {
   );
 }
 
-export default function SignInPage(props: LoginProps) {
+export default function SignInPage() {
   return (
     <ErrorBoundary>
-      <SignInContent {...props} />
+      <SignInContent />
     </ErrorBoundary>
   );
 }

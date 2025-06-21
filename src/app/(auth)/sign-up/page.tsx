@@ -1,3 +1,5 @@
+"use client";
+
 import { FormMessage, Message } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui/input";
@@ -8,22 +10,30 @@ import { signUpAction } from "@/app/actions";
 import Navbar from "@/components/navbar";
 import { ErrorBoundary } from "@/components/error-boundary";
 import React from "react";
+import { useSearchParams } from "next/navigation";
 
-interface SignupProps {
-  searchParams: Promise<Message>;
-}
-
-function SignupContent(props: SignupProps) {
-  // Handle the async searchParams safely
-  const [searchParams, setSearchParams] = React.useState<Message | null>(null);
-  const [loading, setLoading] = React.useState(true);
+function SignupContent() {
+  const searchParams = useSearchParams();
+  const [message, setMessage] = React.useState<Message | null>(null);
+  const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const loadSearchParams = async () => {
       try {
-        const resolvedParams = await props.searchParams;
-        setSearchParams(resolvedParams);
+        setLoading(true);
+        // Parse search params from URL
+        const success = searchParams.get('success');
+        const error = searchParams.get('error');
+        const message = searchParams.get('message');
+        
+        if (success || error || message) {
+          setMessage({
+            success: success || undefined,
+            error: error || undefined,
+            message: message || undefined
+          });
+        }
       } catch (error) {
         console.error('Error loading search params:', error);
         setError('Failed to load page data');
@@ -33,7 +43,7 @@ function SignupContent(props: SignupProps) {
     };
 
     loadSearchParams();
-  }, [props.searchParams]);
+  }, [searchParams]);
 
   // Error state
   if (error) {
@@ -70,10 +80,10 @@ function SignupContent(props: SignupProps) {
     );
   }
 
-  if (searchParams && "message" in searchParams) {
+  if (message && ("message" in message || "success" in message || "error" in message)) {
     return (
       <div className="flex h-screen w-full flex-1 items-center justify-center p-4 sm:max-w-md">
-        <FormMessage message={searchParams} />
+        <FormMessage message={message} />
       </div>
     );
   }
@@ -152,7 +162,7 @@ function SignupContent(props: SignupProps) {
               Sign up
             </SubmitButton>
 
-            {searchParams && <FormMessage message={searchParams} />}
+            {message && <FormMessage message={message} />}
           </form>
         </div>
         <SmtpMessage />
@@ -161,10 +171,10 @@ function SignupContent(props: SignupProps) {
   );
 }
 
-export default function Signup(props: SignupProps) {
+export default function Signup() {
   return (
     <ErrorBoundary>
-      <SignupContent {...props} />
+      <SignupContent />
     </ErrorBoundary>
   );
 }
