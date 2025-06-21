@@ -1,19 +1,14 @@
 import { createClient } from "../../supabase/client";
-import { createClient as createServerClient } from "../../supabase/server";
 import { TablesInsert, TablesUpdate } from "@/types/supabase";
 
 export class DataService {
-  private static async getClient() {
-    try {
-      return await createServerClient();
-    } catch {
-      return createClient();
-    }
+  private static getClient() {
+    return createClient();
   }
 
   // User Profile Operations
   static async getUserProfile(userId: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -25,7 +20,7 @@ export class DataService {
   }
 
   static async getUserExtendedProfile(userId: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('user_profiles')
       .select('*')
@@ -38,7 +33,7 @@ export class DataService {
 
   // User Statistics
   static async getUserStats(userId: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .rpc('get_user_stats', { user_uuid: userId });
     
@@ -48,7 +43,7 @@ export class DataService {
 
   // Recent Activity
   static async getRecentActivity(userId: string, limit: number = 10) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .rpc('get_recent_activity', { 
         user_uuid: userId, 
@@ -61,7 +56,7 @@ export class DataService {
 
   // Applications Operations
   static async getApplications(userId: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('applications')
       .select('*')
@@ -73,7 +68,7 @@ export class DataService {
   }
 
   static async getApplication(id: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('applications')
       .select('*')
@@ -85,7 +80,7 @@ export class DataService {
   }
 
   static async createApplication(application: TablesInsert<'applications'>) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('applications')
       .insert(application)
@@ -97,7 +92,7 @@ export class DataService {
   }
 
   static async updateApplication(id: string, updates: Partial<TablesUpdate<'applications'>>) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('applications')
       .update(updates)
@@ -111,7 +106,7 @@ export class DataService {
 
   // Jobs Operations
   static async getJobs(limit: number = 50) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('jobs')
       .select('*')
@@ -124,7 +119,7 @@ export class DataService {
   }
 
   static async getJob(id: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('jobs')
       .select('*')
@@ -137,7 +132,7 @@ export class DataService {
 
   // Network Connections Operations
   static async getNetworkConnections(userId: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('network_connections')
       .select('*')
@@ -149,7 +144,7 @@ export class DataService {
   }
 
   static async createNetworkConnection(connection: TablesInsert<'network_connections'>) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('network_connections')
       .insert(connection)
@@ -162,7 +157,7 @@ export class DataService {
 
   // Messages Operations
   static async getMessages(userId: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('messages')
       .select(`
@@ -178,7 +173,7 @@ export class DataService {
   }
 
   static async getUnreadMessages(userId: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('messages')
       .select('*')
@@ -191,7 +186,7 @@ export class DataService {
   }
 
   static async sendMessage(message: TablesInsert<'messages'>) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('messages')
       .insert(message)
@@ -203,7 +198,7 @@ export class DataService {
   }
 
   static async markMessageAsRead(messageId: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('messages')
       .update({ 
@@ -220,7 +215,7 @@ export class DataService {
 
   // Interviews Operations
   static async getInterviews(userId: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('interviews')
       .select(`
@@ -235,7 +230,7 @@ export class DataService {
   }
 
   static async createInterview(interview: TablesInsert<'interviews'>) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('interviews')
       .insert(interview)
@@ -248,7 +243,7 @@ export class DataService {
 
   // Referrals Operations
   static async getReferrals(userId: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('referrals')
       .select(`
@@ -264,7 +259,7 @@ export class DataService {
   }
 
   static async createReferral(referral: TablesInsert<'referrals'>) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('referrals')
       .insert(referral)
@@ -277,7 +272,7 @@ export class DataService {
 
   // Subscription Operations
   static async getUserSubscription(userId: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('subscriptions')
       .select('*')
@@ -324,7 +319,7 @@ export class DataService {
 
   // Search and Filter Operations
   static async searchJobs(query: string, location?: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     let queryBuilder = supabase
       .from('jobs')
       .select('*')
@@ -343,7 +338,7 @@ export class DataService {
   }
 
   static async getApplicationsByStatus(userId: string, status: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('applications')
       .select('*')
@@ -357,7 +352,7 @@ export class DataService {
 
   // Analytics and Reporting
   static async getApplicationStats(userId: string) {
-    const supabase = await this.getClient();
+    const supabase = this.getClient();
     const { data, error } = await supabase
       .from('applications')
       .select('status, applied_at')
